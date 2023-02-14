@@ -18,11 +18,12 @@ namespace cluster_lib
 class ClusterPanasonicOccupancy : public ClusterWorker
 {
 public:
+    bool occupancy;
     enum {STATE_IDLE, STATE_BLANKING, STATE_DELAY} state;
-    uint32_t timeout;
+    uint32_t timeout; // in seconds
     uint32_t blankingTime;
 
-    ClusterPanasonicOccupancy(uint32_t _timeout, PostEventCallback _postEvent);
+    ClusterPanasonicOccupancy(uint32_t _endpoint, uint32_t _timeout, PostEventCallback _postEventCallback);
 
     virtual
     ~ClusterPanasonicOccupancy()

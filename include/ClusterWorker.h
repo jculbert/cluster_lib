@@ -21,11 +21,12 @@ typedef void (*PostEventCallback)(const AppEvent * event);
 class ClusterWorker
 {
 private:
-    PostEventCallback postEvent;
+    PostEventCallback postEventCallback;
     TimerHandle_t timerHandle; // Used for delayed RequestProcess
 
 public:
-    ClusterWorker(PostEventCallback _postEvent);
+    uint32_t endpoint;
+    ClusterWorker(uint32_t endpoint, PostEventCallback _postEventCallback);
 
     virtual void Process()
     {}

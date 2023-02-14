@@ -21,8 +21,8 @@ void TimerEventHandler(TimerHandle_t timer)
     ( (ClusterWorker*) (pvTimerGetTimerID(timer)) )->RequestProcess(0);
 }
 
-ClusterWorker::ClusterWorker(PostEventCallback _postEvent)
-  : postEvent(_postEvent)
+ClusterWorker::ClusterWorker(uint32_t _endpoint, PostEventCallback _postEventCallback)
+  : endpoint(_endpoint), postEventCallback(_postEventCallback)
 {
     timerHandle = xTimerCreate("ClusterWorker", 10, false, this, TimerEventHandler);
 }
@@ -35,12 +35,13 @@ void ClusterWorker::RequestProcess(uint32_t delayms)
         event.Type               = AppEvent::kEventType_ClusterWorker;
         event.ClusterWorkerEvent.Context = (void *) this;
         event.Handler            = PostEventHandler;
-        postEvent(&event);
+        postEventCallback(&event);
         return;
     }
 
     // Start timer to call RequestProcess process again after delay
-    xTimerStart(timerHandle, delayms);
+    xTimerChangePeriod(timerHandle, delayms / portTICK_PERIOD_MS, 100);
+    xTimerStart(timerHandle, 100);
 }
 
 }
