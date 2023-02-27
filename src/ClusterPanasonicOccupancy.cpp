@@ -5,6 +5,10 @@
  *      Author: jeff
  */
 
+#include "AppConfig.h"
+
+#ifdef CLUSTER_PANASONIC_OCCUPANCY
+
 #include "em_gpio.h"
 #include "gpiointerrupt.h"
 #include "sl_emlib_gpio_init_motion_input_config.h"
@@ -97,3 +101,5 @@ void ClusterPanasonicOccupancy::Process()
 }
 
 } /* namespace cluster_lib */
+
+#endif // CLUSTER_PANASONIC_OCCUPANCY

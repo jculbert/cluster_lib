@@ -8,6 +8,10 @@
 #ifndef CLUSTER_LIB_INCLUDE_CLUSTERPANASONICOCCUPANCY_H_
 #define CLUSTER_LIB_INCLUDE_CLUSTERPANASONICOCCUPANCY_H_
 
+#include "AppConfig.h"
+
+#ifdef CLUSTER_PANASONIC_OCCUPANCY
+
 #include <stdint.h>
 
 #include <ClusterWorker.h>
@@ -33,5 +37,7 @@ public:
 };
 
 } /* namespace cluster_lib */
+
+#endif // CLUSTER_PANASONIC_OCCUPANCY
 
 #endif /* CLUSTER_LIB_INCLUDE_CLUSTERPANASONICOCCUPANCY_H_ */
