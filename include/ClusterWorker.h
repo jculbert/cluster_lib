@@ -18,22 +18,26 @@ namespace cluster_lib {
 
 typedef void (*PostEventCallback)(const AppEvent * event);
 
+void PostEventHandler(AppEvent *event);
+
 class ClusterWorker
 {
-private:
+public:
     PostEventCallback postEventCallback;
     TimerHandle_t timerHandle; // Used for delayed RequestProcess
 
-public:
+    // Base value for ClusterWorkerEvent SubType
+    static const int8_t EventSubTypeBase = 0;
+
     uint32_t endpoint;
     ClusterWorker(uint32_t endpoint, PostEventCallback _postEventCallback);
 
-    virtual void Process()
-    {}
+    virtual void Process(const AppEvent * event) = 0;
 
     void RequestProcess(uint32_t delayms);
 };
 
+}
+
 #endif /* CLUSTER_LIB_INCLUDE_CLUSTER_H_ */
 
-}

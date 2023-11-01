@@ -33,7 +33,7 @@ namespace cluster_lib {
 static ClusterPanasonicOccupancy *cluster;
 static bool interrupt = false;
 
-static const unsigned INT_NUM = 3; // Note, valid values depends on pin number (see GPIO_ExtIntConfig)
+static const unsigned INT_NUM = 4; // Note, valid values depends on pin number (see GPIO_ExtIntConfig)
 
 static void int_callback(unsigned char intNo)
 {
