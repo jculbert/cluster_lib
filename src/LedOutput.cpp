@@ -5,6 +5,10 @@
  *      Author: jeff
  */
 
+#include "AppConfig.h"
+
+#ifdef LEDOUTPUT
+
 #include "LedOutput.h"
 
 namespace cluster_lib
@@ -23,3 +27,5 @@ namespace cluster_lib
         led_widget.Set(state);
     }
 } /* namespace cluster_lib */
+
+#endif // LEDOUTPU

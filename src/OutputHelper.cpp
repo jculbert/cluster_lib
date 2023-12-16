@@ -7,7 +7,7 @@
 
 #include "AppConfig.h"
 
-#ifdef LEDBLINKER
+#ifdef OUTPUTHELPER
 
 #include <OutputHelper.h>
 
@@ -92,4 +92,4 @@ namespace cluster_lib
 
 } /* namespace cluster_lib */
 
-#endif // LEDBLINKER
+#endif // OUTPUTHELPER
