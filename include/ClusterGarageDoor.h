@@ -11,6 +11,7 @@
 #include <app/ConcreteAttributePath.h>
 
 #include <ClusterWorker.h>
+#include <GpioOutput.h>
 
 namespace cluster_lib
 {
@@ -19,12 +20,12 @@ namespace cluster_lib
     {
     public:
         enum {COMMAND_NONE, COMMAND_OPEN, COMMAND_CLOSE} command;
-        bool relay_closed; // true means relays is being pulsed closed
+        bool door_closed;
         bool contact_int; // true means a contact rising or falling interrupt occurred
-        bool door_closed; // true means door contact is in the door closed state
         bool target_changed;
         unsigned pulse_relay_duration;
         uint64_t contact_ms; // Time of last contact interrupt
+        GpioOutput gpio_output;
 
        ClusterGarageDoor (uint32_t _endpoint, PostEventCallback _postEventCallback);
         virtual

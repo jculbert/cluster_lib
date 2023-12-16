@@ -40,17 +40,12 @@ namespace cluster_lib
 
 static ClusterGarageDoor *cluster;
 
-static const unsigned INT_NUM = 4; // Note, valid values depends on pin number (see GPIO_ExtIntConfig)
-
 static void int_callback(unsigned char intNo)
 {
     SILABS_LOG("Contact interrupt");
     cluster->contact_int = true;
 
-    // Request processing if a relay pulse is not in progress
-    // Delay a small amount to allow for bounce
-    if (!cluster->relay_closed)
-      cluster->RequestProcess(200);
+    cluster->RequestProcess(200); // Delay to allow for bounce
 }
 
 static void UpdateClusterState(intptr_t notused)
@@ -70,13 +65,12 @@ static void UpdateClusterState(intptr_t notused)
 
 ClusterGarageDoor::ClusterGarageDoor (uint32_t _endpoint, PostEventCallback _postEventCallback)
     : ClusterWorker(_endpoint, _postEventCallback),
-      command(COMMAND_NONE), relay_closed(false), contact_int(false), pulse_relay_duration(500),
-      target_changed(false), contact_ms(0)
+      command(COMMAND_NONE), contact_int(false), pulse_relay_duration(500),
+      target_changed(false), contact_ms(0), gpio_output(SL_EMLIB_GPIO_INIT_RELAY_OUTPUT_PORT, SL_EMLIB_GPIO_INIT_RELAY_OUTPUT_PIN)
 {
     cluster = this;
-    // Note, the contact input GPIO has been setup by app config to input with pull hight
-    GPIOINT_CallbackRegister(INT_NUM, int_callback);
-    GPIO_ExtIntConfig(SL_EMLIB_GPIO_INIT_CONTACT_INPUT_PORT, SL_EMLIB_GPIO_INIT_CONTACT_INPUT_PIN, INT_NUM, 1, 1, true); // rising and falling edge, interrupt enabled
+    GPIOINT_CallbackRegister(SL_EMLIB_GPIO_INIT_CONTACT_INPUT_PIN, int_callback);
+    GPIO_ExtIntConfig(SL_EMLIB_GPIO_INIT_CONTACT_INPUT_PORT, SL_EMLIB_GPIO_INIT_CONTACT_INPUT_PIN, SL_EMLIB_GPIO_INIT_CONTACT_INPUT_PIN, 1, 1, true); // rising and falling edge, interrupt enabled
 
     door_closed = GPIO_PinInGet(SL_EMLIB_GPIO_INIT_CONTACT_INPUT_PORT, SL_EMLIB_GPIO_INIT_CONTACT_INPUT_PIN) == 1;
     RequestProcess(30000);
@@ -91,34 +85,13 @@ void ClusterGarageDoor::Process(const AppEvent * event)
     SILABS_LOG("Garage Process");
 
 #if 0
-    static bool state = false;
-    if (state)
-        GPIO_PinOutSet(SL_EMLIB_GPIO_INIT_RELAY_OUTPUT_PORT, SL_EMLIB_GPIO_INIT_RELAY_OUTPUT_PIN);
-    else
-        GPIO_PinOutClear(SL_EMLtarget_changedIB_GPIO_INIT_RELAY_OUTPUT_PORT, SL_EMLIB_GPIO_INIT_RELAY_OUTPUT_PIN);
-
-    state = !state;
+    gpio_output.Pulse(1, 500);
     RequestProcess(5000);
-#endif
+#else
 
     // Request for periodic refresh
     // This could get overriden to a shorter value below
-    RequestProcess(30000);
-
-    if (relay_closed)
-    {
-        // We were called due to relay pulse duration
-        relay_closed = false;
-        GPIO_PinOutClear(SL_EMLIB_GPIO_INIT_RELAY_OUTPUT_PORT, SL_EMLIB_GPIO_INIT_RELAY_OUTPUT_PIN);
-        SILABS_LOG("Pulse end");
-
-        if (!cluster->contact_int)
-        {
-            // Contact change has not occurred yet.
-            // Don't continue to below which will update state to old state
-            return;
-        }
-    }
+    RequestProcess(60000);
 
     if (cluster->contact_int)
     {
@@ -159,7 +132,10 @@ void ClusterGarageDoor::Process(const AppEvent * event)
         if ((status == EMBER_ZCL_STATUS_SUCCESS) && !target.IsNull())
         {
            SILABS_LOG("Garage target_lift %d", target.Value());
-           command = target.Value() == 0 ? COMMAND_OPEN: COMMAND_CLOSE;
+           if (door_closed && target.Value() < 5000)
+               command = COMMAND_OPEN;
+           else if (!door_closed && target.Value() >= 5000)
+               command = COMMAND_CLOSE;
         }
 #endif
     }
@@ -168,14 +144,12 @@ void ClusterGarageDoor::Process(const AppEvent * event)
     {
         SILABS_LOG("Process: %s", command == COMMAND_OPEN ? "OPEN": "CLOSE");
         command = COMMAND_NONE;
-        relay_closed = true;
-        GPIO_PinOutSet(SL_EMLIB_GPIO_INIT_RELAY_OUTPUT_PORT, SL_EMLIB_GPIO_INIT_RELAY_OUTPUT_PIN);
-        RequestProcess(pulse_relay_duration);
+        gpio_output.Pulse(1, pulse_relay_duration);
         return; // Don't continue to state update below.
     }
 
-    // Always schedule to update state. Will only cause an action if state is different from stored value
     chip::DeviceLayer::PlatformMgr().ScheduleWork(UpdateClusterState, reinterpret_cast<intptr_t>(nullptr));
+#endif
 }
 
 void ClusterGarageDoor::NotifyAttributeChange(const chip::app::ConcreteAttributePath & attributePath)
