@@ -20,8 +20,8 @@
 
 #include "ClusterTemperature.h"
 
-#undef SILABS_LOG
-#define SILABS_LOG(...)
+//undef SILABS_LOG
+//define SILABS_LOG(...)
 
 namespace cluster_lib
 {
@@ -59,7 +59,7 @@ void ClusterTemperature::Process(const AppEvent * event)
     SILABS_LOG("si7021: temp %d, RH %d\n", temp_data, rh_data);
     chip::DeviceLayer::PlatformMgr().ScheduleWork(UpdateClusterState, reinterpret_cast<intptr_t>(nullptr));
 
-    RequestProcess(5*60*1000);
+    RequestProcess(270*1000);
 }
 
 } /* namespace cluster_lib */
