@@ -19,6 +19,12 @@
 
 #include "sl_emlib_gpio_init_PULSE_INPUT_config.h"
 
+#include <app-common/zap-generated/attributes/Accessors.h>
+#include <app-common/zap-generated/ids/Attributes.h>
+#include <app-common/zap-generated/ids/Clusters.h>
+
+#include <app/util/attribute-storage.h>
+
 #include "ClusterWind.h"
 
 // The PCNT (Pulse Counter) related code was copied from
@@ -36,6 +42,8 @@ namespace cluster_lib
 
 // PRS channel to use for GPIO/PCNT
 #define PCNT_PRS_Ch0    0
+
+static ClusterWind *cluster;
 
 /***************************************************************************//**
  * @brief PCNT0 interrupt handler
@@ -66,6 +74,8 @@ static void initPcnt(void)
   pcntInit.s1CntDir = false;        // S1 does not affect counter direction,
                                     // using default init setting; count up
   pcntInit.s0PRS    = PCNT_PRS_Ch0;
+
+  pcntInit.top = 0xffff;
 
   // Enable PRS Channel 0
   PCNT_PRSInputEnable(PCNT0, pcntPRSInputS0, true);
@@ -142,15 +152,26 @@ static void initGpio(void)
       SL_EMLIB_GPIO_INIT_PULSE_INPUT_PIN, false, false, false);
 }
 
+static void UpdateClusterState(intptr_t notused)
+{
+    SILABS_LOG("Wind wind=%d, gust=%d", cluster->wind, cluster->gust);
+    //chip::app::Clusters::TemperatureMeasurement::Attributes::MeasuredValue::Set(cluster->endpoint, cluster->temperature);
+    chip::app::Clusters::FlowMeasurement::Attributes::MeasuredValue::Set(cluster->endpoint, cluster->wind * 10);
+    chip::app::Clusters::FlowMeasurement::Attributes::MeasuredValue::Set(cluster->endpoint+1, cluster->gust * 10);
+}
+
 ClusterWind::ClusterWind (uint32_t _endpoint, PostEventCallback _postEventCallback)
-    : ClusterWorker(_endpoint, _postEventCallback), pulse_cnt(0), pulse_cnt_max_delta(0),
+    : ClusterWorker(_endpoint, _postEventCallback), pulse_cnt_start(0), pulse_cnt(0), pulse_cnt_max_delta(0),
       num_samples(0), wind(0), gust(0)
 {
+    cluster = this;
     initGpio();
     initPrs();
     initPcnt();
 
     RequestProcess(SAMPLE_PERIOD_SECS * 1000);
+
+    pulse_cnt_start = PCNT_CounterGet(PCNT0);
 }
 
 ClusterWind::~ClusterWind ()
@@ -167,7 +188,7 @@ void ClusterWind::ProcesWindData()
     static uint16_t gustHistoryHead = 0;
 
     wind = (hzToKph * pulse_cnt + (TOTAL_PERIOD_SECS/2) ) / TOTAL_PERIOD_SECS;
-    gustHistory[gustHistoryHead] = (hzToKph * pulse_cnt_max_delta + (TOTAL_PERIOD_SECS/2) ) / TOTAL_PERIOD_SECS;
+    gustHistory[gustHistoryHead] = (hzToKph * pulse_cnt_max_delta + (SAMPLE_PERIOD_SECS/2) ) / SAMPLE_PERIOD_SECS;
     gustHistoryHead = (gustHistoryHead + 1) % gustHistoryLen;
     gust = 0;
     for (uint16_t i = 0; i < gustHistoryLen; i++)
@@ -175,15 +196,20 @@ void ClusterWind::ProcesWindData()
         if (gust < gustHistory[i])
             gust = gustHistory[i];
     }
+    chip::DeviceLayer::PlatformMgr().ScheduleWork(UpdateClusterState, reinterpret_cast<intptr_t>(nullptr));
 }
 
 void ClusterWind::Process(const AppEvent * event)
 {
     uint16_t last_cnt = pulse_cnt;
-    pulse_cnt = PCNT_CounterGet(PCNT0);
-    SILABS_LOG("Wind Process cnt=%d", pulse_cnt);
+
+    // Note, the pulse counter runs without restart and will wrap at 0xffff
+    // Here we get the count since start of cycle by removing an offset
+    // Note, the counter wrapping does not affect this calculation
+    pulse_cnt = PCNT_CounterGet(PCNT0) - pulse_cnt_start;
 
     uint16_t delta = pulse_cnt - last_cnt;
+    SILABS_LOG("Wind Process cnt=%d, delta=%d", pulse_cnt, delta);
     if (delta > pulse_cnt_max_delta)
         pulse_cnt_max_delta = delta;
 
@@ -191,9 +217,16 @@ void ClusterWind::Process(const AppEvent * event)
     {
         ProcesWindData();
         num_samples = 0;
+        pulse_cnt_start = PCNT_CounterGet(PCNT0);
         pulse_cnt = 0;
         pulse_cnt_max_delta = 0;
-        PCNT_CounterReset(PCNT0);
+
+        // Note, resetting the counter was found to cause a long spin wait
+        // and in some cases it did not return. So we let the counter
+        // run and wrap and take this into account as explained above.
+        //PCNT_CounterReset(PCNT0); // This reloads the default top value
+        //PCNT_CounterTopSet(PCNT0, 0, 0xffff);
+        //SILABS_LOG("Wind reset done");
     }
 
     RequestProcess(SAMPLE_PERIOD_SECS * 1000);

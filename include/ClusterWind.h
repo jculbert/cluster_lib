@@ -17,9 +17,11 @@ namespace cluster_lib
     class ClusterWind : public cluster_lib::ClusterWorker
     {
     private:
+        uint16_t pulse_cnt_start;
         uint16_t pulse_cnt;
         uint16_t pulse_cnt_max_delta;
         uint16_t num_samples;
+    public:
         uint16_t wind;
         uint16_t gust;
 
