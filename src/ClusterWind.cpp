@@ -209,7 +209,7 @@ void ClusterWind::Process(const AppEvent * event)
     pulse_cnt = PCNT_CounterGet(PCNT0) - pulse_cnt_start;
 
     uint16_t delta = pulse_cnt - last_cnt;
-    SILABS_LOG("Wind Process cnt=%d, delta=%d", pulse_cnt, delta);
+    //SILABS_LOG("Wind Process cnt=%d, delta=%d", pulse_cnt, delta);
     if (delta > pulse_cnt_max_delta)
         pulse_cnt_max_delta = delta;
 

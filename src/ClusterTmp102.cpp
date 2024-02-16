@@ -101,7 +101,7 @@ ClusterTmp102::ClusterTmp102 (uint32_t _endpoint, PostEventCallback _postEventCa
 
 void ClusterTmp102::Process(const AppEvent * event)
 {
-    SILABS_LOG("Tmp102 Process");
+    //SILABS_LOG("Tmp102 Process");
 
     switch(state)
     {

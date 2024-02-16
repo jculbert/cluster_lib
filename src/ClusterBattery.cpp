@@ -150,7 +150,10 @@ void ClusterBattery::Process(const AppEvent * event)
     {
         waiting_adc = false;
 
-        battery_percent = (100*vbat_mv + nominal_mv/2) / nominal_mv;
+        // battery percent if 1/2 percent units, so 200 is 100 percent
+        battery_percent = (200*vbat_mv + nominal_mv/2) / nominal_mv;
+        if (battery_percent > 200)
+            battery_percent = 200;
         SILABS_LOG("Batt percent %d", battery_percent);
 
         chip::DeviceLayer::PlatformMgr().ScheduleWork(UpdateClusterState, reinterpret_cast<intptr_t>(nullptr));
