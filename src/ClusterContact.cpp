@@ -18,19 +18,17 @@
 
 #include "sl_emlib_gpio_init_hall_input_config.h"
 
-#include <app-common/zap-generated/af-structs.h>
-#include <app-common/zap-generated/attribute-id.h>
-#include <app-common/zap-generated/attribute-type.h>
 #include <app-common/zap-generated/attributes/Accessors.h>
-#include <app-common/zap-generated/cluster-id.h>
-#include <app-common/zap-generated/cluster-objects.h>
+#include <app-common/zap-generated/ids/Attributes.h>
+#include <app-common/zap-generated/ids/Clusters.h>
+
 #include <app/util/attribute-storage.h>
 
 static cluster_lib::ClusterContact *cluster;
 
 static void int_callback(unsigned char intNo)
 {
-    EFR32_LOG("hall int");
+    SILABS_LOG("hall int");
     cluster->state = GPIO_PinInGet(SL_EMLIB_GPIO_INIT_HALL_INPUT_PORT, SL_EMLIB_GPIO_INIT_HALL_INPUT_PIN) == 0 ? false: true;
     cluster->RequestProcess(0);
 }
@@ -38,7 +36,7 @@ static void int_callback(unsigned char intNo)
 static sl_status_t hall_init()
 {
     sl_status_t status = sl_si7210_init(sl_i2cspm_inst0);
-    EFR32_LOG("sl_si7210_init: status %d", status);
+    SILABS_LOG("sl_si7210_init: status %d", status);
     if (status == SL_STATUS_OK)
     {
         sl_si7210_configure_t config = {};
@@ -47,7 +45,7 @@ static sl_status_t hall_init()
 
         // Configure sets threshold and histeresis and enables sleep with periodic measurements
         status = sl_si7210_configure(sl_i2cspm_inst0, &config);
-        EFR32_LOG("sl_si7210_configure: status %d", status);
+        SILABS_LOG("sl_si7210_configure: status %d", status);
     }
     return status;
 }
@@ -62,7 +60,7 @@ static void read_hall()
 {
   float value = 0.123;
   sl_status_t status = sl_si7210_measure(sl_i2cspm_inst0, 1000, &value);
-  EFR32_LOG("read_hall: status %d, value %d", status, (int32_t)(value * 1000));
+  SILABS_LOG("read_hall: status %d, value %d", status, (int32_t)(value * 1000));
 
   // Had trouble getting periodic reading to work and calling
   // measure to we completely init hall after a reading
