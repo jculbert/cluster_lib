@@ -28,7 +28,6 @@ static cluster_lib::ClusterContact *cluster;
 
 static void int_callback(unsigned char intNo)
 {
-    SILABS_LOG("hall int");
     cluster->state = GPIO_PinInGet(SL_EMLIB_GPIO_INIT_HALL_INPUT_PORT, SL_EMLIB_GPIO_INIT_HALL_INPUT_PIN) == 0 ? false: true;
     cluster->RequestProcess(0);
 }
@@ -54,6 +53,7 @@ static void update_cluster_state(intptr_t notused)
 {
     // State is a bitmap, bit 0 is for occupancy
     chip::app::Clusters::BooleanState::Attributes::StateValue::Set(cluster->endpoint, cluster->state);
+    SILABS_LOG("Update cluster state %d", cluster->state);
 }
 
 static void read_hall()

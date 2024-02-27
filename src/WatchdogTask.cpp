@@ -15,9 +15,9 @@
 #include "FreeRTOSConfig.h"
 #include "task.h"
 
-#include "ConfigurationManager.h"
+#include <platform/KeyValueStoreManager.h>
 
-#include "silabs_utils.h"
+#include "efr32_utils.h"
 
 #include <WatchdogTask.h>
 
@@ -93,3 +93,4 @@ void WatchdogInit(uint32_t _reset_reason)
 }
 
 }
+

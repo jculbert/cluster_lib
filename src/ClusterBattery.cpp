@@ -65,14 +65,17 @@ static void initIADC(void)
     // Use the FSRC0 as the IADC clock so it can run in EM2
     CMU_ClockSelectSet(cmuClock_IADCCLK, cmuSelect_FSRCO);
 
+#if 0
     // Set the prescaler needed for the intended IADC clock frequency
     // Set CLK_ADC to 10 MHz
     const uint32_t CLK_SRC_ADC_FREQ = 20000000;
     init.srcClkPrescale = IADC_calcSrcClkPrescale(IADC0, CLK_SRC_ADC_FREQ, 0);
+#endif
 
     // Set the prescaler needed for the intended IADC clock frequency
+    //const uint32_t CLK_ADC_FREQ = 10000000;  // CLK_ADC - 10 MHz max in normal mode
     const uint32_t CLK_ADC_FREQ = 10000000;  // CLK_ADC - 10 MHz max in normal mode
-    init.srcClkPrescale = IADC_calcSrcClkPrescale(IADC0, CLK_SRC_ADC_FREQ, 0);
+    init.srcClkPrescale = IADC_calcSrcClkPrescale(IADC0, CLK_ADC_FREQ, 0);
 
     // Shutdown between conversions to reduce current
     init.warmup = iadcWarmupNormal;
@@ -138,7 +141,6 @@ ClusterBattery::ClusterBattery (uint32_t _endpoint, PostEventCallback _postEvent
 
 {
     cluster = this;
-    initIADC();
     RequestProcess(10000);
 }
 
@@ -149,6 +151,11 @@ void ClusterBattery::Process(const AppEvent * event)
     if (waiting_adc)
     {
         waiting_adc = false;
+
+        // reset ADC and disable clock between measurements to reduce power
+        IADC_reset(IADC0);
+        CMU_ClockSelectSet(cmuClock_IADCCLK, cmuSelect_Disabled);
+        CMU_ClockEnable(cmuClock_IADC0, false);
 
         // battery percent if 1/2 percent units, so 200 is 100 percent
         battery_percent = (200*vbat_mv + nominal_mv/2) / nominal_mv;
@@ -162,6 +169,7 @@ void ClusterBattery::Process(const AppEvent * event)
     else
     {
         waiting_adc = true;
+        initIADC();
         IADC_command(IADC0, iadcCmdStartSingle);
     }
 }
