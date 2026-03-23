@@ -5,6 +5,8 @@
  *      Author: jeff
  */
 
+#ifdef WATCHDOG_TASK
+
 #include <cstddef>
 
 #include "em_cmu.h"
@@ -94,3 +96,4 @@ void WatchdogInit(uint32_t _reset_reason)
 
 }
 
+#endif // WATCHDOG_TASK

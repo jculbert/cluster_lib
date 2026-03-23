@@ -15,7 +15,6 @@ namespace cluster_lib
     class ClusterExcelitasOccupancy : public ClusterWorker
     {
     public:
-        bool occupancy;
         enum {STATE_IDLE, STATE_BLANKING, STATE_DELAY} state;
         uint32_t timeout; // in seconds
         uint32_t blankingTime;
@@ -25,6 +24,7 @@ namespace cluster_lib
         ~ClusterExcelitasOccupancy ();
 
         void Process(const AppEvent * event);
+        void UpdateClusterState(bool occupied);
     };
 
 } /* namespace cluster_lib */

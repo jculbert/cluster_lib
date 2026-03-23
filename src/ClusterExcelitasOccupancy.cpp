@@ -6,6 +6,16 @@
  */
 
 #include "AppConfig.h"
+#include <AppTask.h>
+#include <SensorManager.h>
+#include <app-common/zap-generated/attributes/Accessors.h>
+#include <app-common/zap-generated/ids/Attributes.h>
+#include <app-common/zap-generated/ids/Clusters.h>
+#include <app/clusters/occupancy-sensor-server/occupancy-hal.h>
+#include <app/clusters/occupancy-sensor-server/occupancy-sensor-server.h>
+#include <cmsis_os2.h>
+#include <platform/silabs/platformAbstraction/SilabsPlatform.h>
+
 
 #ifdef CLUSTER_EXCELITAS_OCCUPANCY
 
@@ -16,34 +26,33 @@
 
 #include "sl_udelay.h"
 
-#include <app-common/zap-generated/attributes/Accessors.h>
-#include <app-common/zap-generated/ids/Attributes.h>
-#include <app-common/zap-generated/ids/Clusters.h>
-
-#include <app/util/attribute-storage.h>
-
 #include "ClusterExcelitasOccupancy.h"
 
-#undef SILABS_LOG
-#define SILABS_LOG(...)
+using namespace chip;
+using namespace chip::app;
+using namespace chip::app::Clusters;
+using namespace chip::DeviceLayer::Silabs;
+using namespace chip::Protocols::InteractionModel;
 
 namespace cluster_lib
 {
 static ClusterExcelitasOccupancy *cluster;
 static bool interrupt = false;
-static const unsigned INT_NUM = 4; // Note, valid values depends on pin number (see GPIO_ExtIntConfig)
+
+// Note, interrupt number depends on pin number (see GPIO_ExtIntConfig)
+static const unsigned INT_NUM = SL_EMLIB_GPIO_INIT_MOTION_INPUT_PIN;
 
 static void int_callback(unsigned char intNo)
 {
     if (cluster->state != ClusterExcelitasOccupancy::STATE_BLANKING)
     {
-        SILABS_LOG("PIR int");
+        ChipLogDetail(AppServer, "PIR int");
         GPIO_IntDisable(1<<INT_NUM);
         interrupt = true;
         cluster->RequestProcess(0);
     }
     else
-        SILABS_LOG("PIR blanked");
+      ChipLogDetail(AppServer, "PIR blanked");
 }
 
 static void inline set_serin()
@@ -132,18 +141,31 @@ static void init_detector()
     // Latch the data
     clear_serin();
     sl_udelay_wait(1000);
-    SILABS_LOG("PIR init done");
+    ChipLogProgress(AppServer, "PIR init done");
 }
 
-static void UpdateClusterState(intptr_t notused)
+void ClusterExcelitasOccupancy::UpdateClusterState(bool occupied)
 {
-    // State is a bitmap, bit 0 is for occupancy
-    SILABS_LOG("PIR state %d", cluster->occupancy);
-    chip::app::Clusters::OccupancySensing::Attributes::Occupancy::Set(cluster->endpoint, cluster->occupancy ? 1: 0);
+    if (occupied)
+    {
+        ::chip::DeviceLayer::PlatformMgr().ScheduleWork([](intptr_t arg) {
+            chip::BitMask<OccupancySensing::OccupancyBitmap> state;
+            state.Set(OccupancySensing::OccupancyBitmap::kOccupied);
+            OccupancySensing::Attributes::Occupancy::Set(cluster->endpoint, state);
+        });
+    }
+    else
+    {
+        DeviceLayer::PlatformMgr().ScheduleWork([](intptr_t arg) {
+            chip::BitMask<OccupancySensing::OccupancyBitmap> state;
+            state.Clear(OccupancySensing::OccupancyBitmap::kOccupied);
+            OccupancySensing::Attributes::Occupancy::Set(cluster->endpoint, state);
+        });
+    }
 }
 
 ClusterExcelitasOccupancy::ClusterExcelitasOccupancy (uint32_t _endpoint, uint32_t _timeout, PostEventCallback _postEventCallback)
-    : ClusterWorker(_endpoint, _postEventCallback), occupancy(false), state(STATE_IDLE), timeout(1000 * _timeout), blankingTime(3000 * _timeout / 4)
+    : ClusterWorker(_endpoint, _postEventCallback), state(STATE_IDLE), timeout(1000 * _timeout), blankingTime(3000 * _timeout / 4)
 {
     cluster = this;
     init_detector();
@@ -160,24 +182,23 @@ ClusterExcelitasOccupancy::~ClusterExcelitasOccupancy ()
 
 void ClusterExcelitasOccupancy::Process(const AppEvent * event)
 {
-    SILABS_LOG("PIR Process");
+    ChipLogDetail(AppServer, "PIR Process");
 
     if (interrupt)
     {
-      interrupt = false;
-      if (state == STATE_IDLE)
-      {
+        interrupt = false;
+        if (state == STATE_IDLE)
+        {
         // new motion, call parent to send motion_state
         state = STATE_BLANKING;
-        occupancy = true;
-        chip::DeviceLayer::PlatformMgr().ScheduleWork(UpdateClusterState, reinterpret_cast<intptr_t>(nullptr));
-      }
-      else
+        UpdateClusterState(true);
+        }
+        else
         state = STATE_BLANKING;
 
-      SILABS_LOG("PIR Blanking");
-      RequestProcess(blankingTime); // Start/restart blanking timeout, leave interrupts disabled
-      return;
+        ChipLogDetail(AppServer, "PIR Blanking");
+        RequestProcess(blankingTime); // Start/restart blanking timeout, leave interrupts disabled
+        return;
     }
 
     // Called due to timer
@@ -189,13 +210,12 @@ void ClusterExcelitasOccupancy::Process(const AppEvent * event)
         GPIO_IntClear(1<<INT_NUM); // Clear any spurious interrupt
         GPIO_IntEnable(1<<INT_NUM);
         state = STATE_DELAY;
-        SILABS_LOG("PIR Delay");
+        ChipLogDetail(AppServer, "PIR Delay");
         RequestProcess(timeout - blankingTime); // Delay state until the end of delay period
         break;
     case STATE_DELAY:
         state = STATE_IDLE;
-        occupancy = false;
-        chip::DeviceLayer::PlatformMgr().ScheduleWork(UpdateClusterState, reinterpret_cast<intptr_t>(nullptr));
+        UpdateClusterState(false);
         break;
     case STATE_IDLE:
     default:
