@@ -15,11 +15,15 @@
 #include "em_emu.h"
 #include "em_iadc.h"
 
+#include <AppTask.h>
+//#include <SensorManager.h>
 #include <app-common/zap-generated/attributes/Accessors.h>
 #include <app-common/zap-generated/ids/Attributes.h>
 #include <app-common/zap-generated/ids/Clusters.h>
-
-#include <app/util/attribute-storage.h>
+#include <app/clusters/occupancy-sensor-server/occupancy-hal.h>
+#include <app/clusters/occupancy-sensor-server/occupancy-sensor-server.h>
+#include <cmsis_os2.h>
+#include <platform/silabs/platformAbstraction/SilabsPlatform.h>
 
 #include "ClusterBattery.h"
 
@@ -34,7 +38,7 @@ void IADC_IRQHandler(void)
 
   // 1210 for the bandgap reference, and 4 because we convert Vdd/4
   vbat_mv = (sample.data * 4 * 1210) / 0xFFF;
-  SILABS_LOG("vbat %d", vbat_mv);
+  ChipLogDetail(AppServer, "vbat %d", vbat_mv);
 
   /*
    * Clear the single conversion complete interrupt.  Reading FIFO
@@ -47,11 +51,6 @@ void IADC_IRQHandler(void)
 
 namespace cluster_lib
 {
-
-static void UpdateClusterState(intptr_t notused)
-{
-    chip::app::Clusters::PowerSource::Attributes::BatPercentRemaining::Set(cluster->endpoint, cluster->battery_percent);
-}
 
 static void initIADC(void)
 {
@@ -144,9 +143,16 @@ ClusterBattery::ClusterBattery (uint32_t _endpoint, PostEventCallback _postEvent
     RequestProcess(10000);
 }
 
+void ClusterBattery::UpdateClusterState()
+{
+    DeviceLayer::PlatformMgr().ScheduleWork([](intptr_t arg) {
+        PowerSource::Attributes::BatPercentRemaining::Set(cluster->endpoint, cluster->battery_percent);
+    });
+}
+
 void ClusterBattery::Process(const AppEvent * event)
 {
-    SILABS_LOG("Batt Process");
+    ChipLogDetail(AppServer, "Batt Process");
 
     if (waiting_adc)
     {
@@ -161,9 +167,9 @@ void ClusterBattery::Process(const AppEvent * event)
         battery_percent = (200*vbat_mv + nominal_mv/2) / nominal_mv;
         if (battery_percent > 200)
             battery_percent = 200;
-        SILABS_LOG("Batt percent %d", battery_percent);
+        ChipLogProgress(AppServer, "Batt percent %d", battery_percent);
 
-        chip::DeviceLayer::PlatformMgr().ScheduleWork(UpdateClusterState, reinterpret_cast<intptr_t>(nullptr));
+        UpdateClusterState();
         RequestProcess(refresh_ms);
     }
     else

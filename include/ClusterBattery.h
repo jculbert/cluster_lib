@@ -27,6 +27,8 @@ public:
 public:
     ClusterBattery (uint32_t _endpoint, PostEventCallback _postEventCallback, uint32_t nomimal_mv, uint32_t refresh_minutes);
 
+    void UpdateClusterState();
+
     void Process(const AppEvent * event);
 };
 

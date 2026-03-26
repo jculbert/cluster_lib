@@ -18,6 +18,7 @@ namespace cluster_lib
         enum {STATE_IDLE, STATE_BLANKING, STATE_DELAY} state;
         uint32_t timeout; // in seconds
         uint32_t blankingTime;
+        bool occupied;
 
         ClusterExcelitasOccupancy (uint32_t _endpoint, uint32_t _timeout, PostEventCallback _postEventCallback);
         virtual

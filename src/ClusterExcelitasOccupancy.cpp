@@ -5,9 +5,11 @@
  *      Author: jeff
  */
 
+
 #include "AppConfig.h"
+
 #include <AppTask.h>
-#include <SensorManager.h>
+//#include <SensorManager.h>
 #include <app-common/zap-generated/attributes/Accessors.h>
 #include <app-common/zap-generated/ids/Attributes.h>
 #include <app-common/zap-generated/ids/Clusters.h>
@@ -17,7 +19,6 @@
 #include <platform/silabs/platformAbstraction/SilabsPlatform.h>
 
 
-#ifdef CLUSTER_EXCELITAS_OCCUPANCY
 
 #include "em_gpio.h"
 #include "gpiointerrupt.h"
@@ -144,28 +145,22 @@ static void init_detector()
     ChipLogProgress(AppServer, "PIR init done");
 }
 
-void ClusterExcelitasOccupancy::UpdateClusterState(bool occupied)
+void ClusterExcelitasOccupancy::UpdateClusterState(bool _occupied)
 {
-    if (occupied)
-    {
-        ::chip::DeviceLayer::PlatformMgr().ScheduleWork([](intptr_t arg) {
-            chip::BitMask<OccupancySensing::OccupancyBitmap> state;
+    occupied = _occupied;
+    DeviceLayer::PlatformMgr().ScheduleWork([](intptr_t arg) {
+        chip::BitMask<OccupancySensing::OccupancyBitmap> state;
+        if (cluster->occupied)
             state.Set(OccupancySensing::OccupancyBitmap::kOccupied);
-            OccupancySensing::Attributes::Occupancy::Set(cluster->endpoint, state);
-        });
-    }
-    else
-    {
-        DeviceLayer::PlatformMgr().ScheduleWork([](intptr_t arg) {
-            chip::BitMask<OccupancySensing::OccupancyBitmap> state;
+        else
             state.Clear(OccupancySensing::OccupancyBitmap::kOccupied);
-            OccupancySensing::Attributes::Occupancy::Set(cluster->endpoint, state);
-        });
-    }
+        OccupancySensing::Attributes::Occupancy::Set(cluster->endpoint, state);
+    });
 }
 
 ClusterExcelitasOccupancy::ClusterExcelitasOccupancy (uint32_t _endpoint, uint32_t _timeout, PostEventCallback _postEventCallback)
-    : ClusterWorker(_endpoint, _postEventCallback), state(STATE_IDLE), timeout(1000 * _timeout), blankingTime(3000 * _timeout / 4)
+    : ClusterWorker(_endpoint, _postEventCallback), state(STATE_IDLE), timeout(1000 * _timeout), blankingTime(3000 * _timeout / 4),
+      occupied(false)
 {
     cluster = this;
     init_detector();
@@ -189,12 +184,11 @@ void ClusterExcelitasOccupancy::Process(const AppEvent * event)
         interrupt = false;
         if (state == STATE_IDLE)
         {
-        // new motion, call parent to send motion_state
-        state = STATE_BLANKING;
-        UpdateClusterState(true);
+            state = STATE_BLANKING;
+            UpdateClusterState(true);
         }
         else
-        state = STATE_BLANKING;
+            state = STATE_BLANKING;
 
         ChipLogDetail(AppServer, "PIR Blanking");
         RequestProcess(blankingTime); // Start/restart blanking timeout, leave interrupts disabled
@@ -225,4 +219,3 @@ void ClusterExcelitasOccupancy::Process(const AppEvent * event)
 
 } /* namespace cluster_lib */
 
-#endif //CLUSTER_PANASONIC_OCCUPANCY
