@@ -5,9 +5,6 @@
  *      Author: jeff
  */
 
-#include "AppConfig.h"
-
-#ifdef CLUSTER_BATTERY
 
 // IADC code copied from https://github.com/SiliconLabs/peripheral_examples/blob/master/series2/iadc/iadc_single_interrupt/src/main_single_interrupt.c
 
@@ -26,6 +23,12 @@
 #include <platform/silabs/platformAbstraction/SilabsPlatform.h>
 
 #include "ClusterBattery.h"
+
+using namespace chip;
+using namespace chip::app;
+using namespace chip::app::Clusters;
+using namespace chip::DeviceLayer::Silabs;
+using namespace chip::Protocols::InteractionModel;
 
 static cluster_lib::ClusterBattery *cluster;
 
@@ -182,4 +185,3 @@ void ClusterBattery::Process(const AppEvent * event)
 
 } /* namespace cluster_lib */
 
-#endif // CLUSTER_TEMPERATURE

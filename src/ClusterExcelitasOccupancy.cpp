@@ -6,10 +6,8 @@
  */
 
 
-#include "AppConfig.h"
 
 #include <AppTask.h>
-//#include <SensorManager.h>
 #include <app-common/zap-generated/attributes/Accessors.h>
 #include <app-common/zap-generated/ids/Attributes.h>
 #include <app-common/zap-generated/ids/Clusters.h>
@@ -17,7 +15,6 @@
 #include <app/clusters/occupancy-sensor-server/occupancy-sensor-server.h>
 #include <cmsis_os2.h>
 #include <platform/silabs/platformAbstraction/SilabsPlatform.h>
-
 
 
 #include "em_gpio.h"
