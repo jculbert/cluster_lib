@@ -145,13 +145,13 @@ static void init_detector()
 void ClusterExcelitasOccupancy::UpdateClusterState(bool _occupied)
 {
     occupied = _occupied;
-    DeviceLayer::PlatformMgr().ScheduleWork([](intptr_t arg) {
-        chip::BitMask<OccupancySensing::OccupancyBitmap> state;
+    DeviceLayer::PlatformMgr().ScheduleWork([](intptr_t arg) -> void {
+        chip::BitMask<OccupancySensing::OccupancyBitmap> bitmap;
         if (cluster->occupied)
-            state.Set(OccupancySensing::OccupancyBitmap::kOccupied);
+            bitmap.Set(OccupancySensing::OccupancyBitmap::kOccupied);
         else
-            state.Clear(OccupancySensing::OccupancyBitmap::kOccupied);
-        OccupancySensing::Attributes::Occupancy::Set(cluster->endpoint, state);
+            bitmap.Clear(OccupancySensing::OccupancyBitmap::kOccupied);
+        OccupancySensing::Attributes::Occupancy::Set(cluster->endpoint, bitmap);
     });
 }
 
